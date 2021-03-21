@@ -6,6 +6,7 @@
 
 #define ROTCTLD_PORT 4533
 #define MAX_CLIENTS 4 // TODO
+#define ADC_AVG_CNT 200
 
 #define AZ_HIST 2
 #define EL_HIST 2
@@ -27,6 +28,11 @@ WiFiClient client; // TODO: concurrency
 float p_az = 180, p_el = 0; // Parking
 float c_az = 0, c_el = 0; // Current
 float t_az = 0, t_el = 0; // Target
+
+int az_values[ADC_AVG_CNT] = {0}, el_values[ADC_AVG_CNT] = {0};
+int adc_az_0 = 32, adc_az_450 = 900;
+int adc_el_0 = 32, adc_el_180 = 700;
+
 boolean motor_enable = false;
 
 void setup_ota() {
@@ -71,17 +77,33 @@ int read_adc_mux(int pin) {
   return adc;
 }
 
+float read_adc_mux_map(int pin, int end_low, int end_high, int real_low, int real_high) {
+  return map(read_adc_mux(pin), end_low, end_high, real_low, real_high);
+}
+
+int adc_read_iter = 0;
 void read_position() {
-  int adc_az = read_adc_mux(PIN_ADC_AZ_DIS);
-  int adc_el = read_adc_mux(PIN_ADC_EL_DIS);
+  adc_read_iter++;
+  if(adc_read_iter == ADC_AVG_CNT) adc_read_iter = 0;
+  az_values[adc_read_iter] = read_adc_mux_map(PIN_ADC_AZ_DIS, adc_az_0, adc_az_450, 0, 450);
+  el_values[adc_read_iter] = read_adc_mux_map(PIN_ADC_EL_DIS, adc_el_0, adc_el_180, 0, 180);
+
+  float az_sum = 0, el_sum = 0;
+  for(int i = 0; i < ADC_AVG_CNT; i++) {
+    az_sum += az_values[i];
+    el_sum += el_values[i];
+  }
+
+  c_az = az_sum / ADC_AVG_CNT;
+  c_el = el_sum / ADC_AVG_CNT;
   
-  if(motor_enable) {
+  /*if(motor_enable) {
     // Simulation
     if(t_az < c_az) c_az -= 0.008;
     if(t_az > c_az) c_az += 0.008;
     if(t_el < c_el) c_el -= 0.003;
     if(t_el > c_el) c_el += 0.003;
-  }
+  }*/
 }
 
 void set_target_to_current() {
@@ -201,11 +223,10 @@ void setup() {
 void loop() {
   ArduinoOTA.handle();
   MDNS.update();
-  
-  ESP.wdtFeed();
+
   check_clients();
   read_position();
   handle_motor();
-  
-  delay(1);
+
+  delay(10);
 }
