@@ -6,7 +6,7 @@
 
 #define ROTCTLD_PORT 4533
 #define MAX_CLIENTS 4 // TODO
-#define ADC_AVG_CNT 200
+#define ADC_AVG_CNT 50
 
 #define AZ_HIST 2
 #define EL_HIST 2
