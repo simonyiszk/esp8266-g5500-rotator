@@ -30,8 +30,8 @@ float c_az = 0, c_el = 0; // Current
 float t_az = 0, t_el = 0; // Target
 
 int az_values[ADC_AVG_CNT] = {0}, el_values[ADC_AVG_CNT] = {0};
-int adc_az_0 = 32, adc_az_450 = 900;
-int adc_el_0 = 32, adc_el_180 = 700;
+int adc_az_0 = 32, adc_az_450 = 570;
+int adc_el_0 = 32, adc_el_180 = 570;
 
 boolean motor_enable = false;
 
@@ -96,6 +96,12 @@ void read_position() {
 
   c_az = az_sum / ADC_AVG_CNT;
   c_el = el_sum / ADC_AVG_CNT;
+
+  if(c_az < 0) c_az = 0;
+  if(c_el < 0) c_el = 0;
+
+  if(c_az > 450) c_az = 450;
+  if(c_el > 180) c_el = 180;
   
   /*if(motor_enable) {
     // Simulation
@@ -163,8 +169,8 @@ void check_clients() {
         client.print("Wireless rotctld emulator for Yaesu G-5500 - v2021.03.21 HA5KFU\n");
         
       } else if (req == 'D') { // debug
-        client.printf("ADC0 shorted: %d\n", analogRead(0));
-        client.printf("ADC azimuth: %d\n", read_adc_mux(PIN_ADC_AZ_DIS));
+        client.printf("ADC shorted:   %d\n", analogRead(0));
+        client.printf("ADC azimuth:   %d\n", read_adc_mux(PIN_ADC_AZ_DIS));
         client.printf("ADC elevation: %d\n", read_adc_mux(PIN_ADC_EL_DIS));
         client.printf("Current state  AZ: %3.5f, EL: %3.5f\n", c_az, c_el);
         client.printf("Target state   AZ: %3.5f, EL: %3.5f\n", t_az, t_el);
@@ -220,13 +226,16 @@ void setup() {
   server.begin();
 }
 
+int main_iter = 0;
 void loop() {
   ArduinoOTA.handle();
   MDNS.update();
 
   check_clients();
   read_position();
-  handle_motor();
+  if(main_iter % 20 == 0) handle_motor();
 
+  main_iter++;
+  if(main_iter == 1000) main_iter = 0;
   delay(10);
 }
